@@ -2,8 +2,9 @@ import sys
 import requests
 from fuzzywuzzy import fuzz
 import datetime
-from enum import Enum
+
 from media_manager import PushoverFactory, SeriesFactory, MovieFactory, Movie, Series
+from media_manager.core import *
 
 
 """
@@ -26,7 +27,7 @@ MINIMUM_SIMILARITY_RATIO_SERIES = 80
 NUMBER_HISTORY_ITEMS_TO_CONSIDER = 30 # this is the number of history items to review while matching the movie from filebot
 
 """
-This can be set to False for most people.  It's a specific configuration for the author's system.
+This can be set to False for most people.  Setting this to true will review movies for multiple copies and potentially offer to remove duplicates.
 """
 PERFORM_POST_MATCH_OPERATIONS = False
 
