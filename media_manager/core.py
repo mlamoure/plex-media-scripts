@@ -1,6 +1,10 @@
 import math
 from enum import Enum
 
+class DownloadType(Enum):
+	MOVIE = 0
+	EPISODE = 1
+
 class RIPType(Enum):
 	WEBRIP = 0
 	WEBDL = 1

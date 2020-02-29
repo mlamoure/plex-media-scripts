@@ -7,7 +7,7 @@ class PushoverFactory(object):
 		self._pushover_user_key = pushover_user_key
 		pass
 
-	def SendPushoverMessage(self, title, message):
+	def send_pushover_message(self, title, message):
 		conn = http.client.HTTPSConnection("api.pushover.net:443")
 		conn.request("POST", "/1/messages.json",
 		urllib.parse.urlencode({

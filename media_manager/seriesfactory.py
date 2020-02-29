@@ -8,22 +8,27 @@ class SeriesFactory(MediaFactory):
 		super().__init__(api_url, api_key)
 		pass
 
-	def load_from_pvr(self, media_id = "HaveOnDisk"):
-		to_return = None
+	def load_from_pvr(self, media_id = "haveondisk"):
+		media_id = media_id.lower()
 
-		if media_id == "HaveOnDisk" or media_id == "All":
+		if not hasattr(self, "__pvr_db"):
+			self.__pvr_db = {}
+
+		if str(media_id) in self.__pvr_db:
+#			print ("returning series from cache for key '" + str(media_id) + "'")
+			return self.__pvr_db[str(media_id)]
+
+		if media_id == "haveondisk" or media_id == "all":
 			to_return = []
 
 			for media in self.json_from_pvr():
-				if media_id == "All" or (media_id == "HaveOnDisk" and media["totalEpisodeCount"] > 0):
-					new_media = Series(media["id"], self)
-					new_media.load_from_json(media)
+				if media_id == "all" or (media_id == "haveondisk" and media["hasFile"]):
+					new_media = Series(media["id"], self, media)
 					to_return.append(new_media)
-
 		else:
 			to_return = Series(media_id, self)
-			to_return.load_from_json(self.json_from_pvr(media_id))
 
+		self.__pvr_db[str(media_id)] = to_return
 		return to_return
 
 	def json_from_pvr(self, series_id = "All"):
@@ -32,11 +37,12 @@ class SeriesFactory(MediaFactory):
 		else:
 			return requests.get(self._api_url + "/series/" + str(series_id) + "?apikey=" + self._api_key).json()
 
-	def update_series(self, series_id, series_data_json):
+	def update_media(self, series_id, series_data_json):
 		return super()._update_media("/series/", series_id, series_data_json)
 
 	def rescan(self, series_id):
-		print ("...  sending command to rescan series...")
+		print ()
+		print ("sending command to rescan series...")
 		command_json = {
 			'name': 'RescanSeries',
 			'seriesId': series_id
