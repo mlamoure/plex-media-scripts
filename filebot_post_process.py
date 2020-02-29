@@ -40,22 +40,19 @@ sonarr_api_key = "<your sonarr API key>"
 pushover_app_token = ""
 pushover_user_key = ""
 
+
 #######################################################
 #### END CONFIG
 #######################################################
 
 assert len(sys.argv) == 7
 
-class DownloadType(Enum):
-	MOVIE = 0
-	EPISODE = 1
-
 name = sys.argv[1]
 fn = sys.argv[2]
 filebot_folder = sys.argv[3].strip()
 download_type = sys.argv[4].lower().strip()
 series_episode_numbers = sys.argv[5]
-imdb = sys.argv[6]
+tmdbId_tvdbId = int(sys.argv[6])
 
 if filebot_folder[-1] != "/":
 	filebot_folder = filebot_folder + "/"
@@ -114,7 +111,7 @@ print ('  fn:', str(fn))
 print ('  folder:', str(filebot_folder))
 print ('  download_type:', str(download_type))
 print ('  series episode:', str(series_episode_numbers))
-print ('  IMDB ID:', str(imdb))
+print ('  TheMovieDB / TheTVDB ID:', str(tmdbId_tvdbId))
 print ("")
 
 #############################
@@ -130,6 +127,9 @@ if download_type == DownloadType.MOVIE:
 	media_factory = MovieFactory(radarr_api_url, radarr_api_key)
 elif download_type == DownloadType.EPISODE:
 	media_factory = SeriesFactory(sonarr_api_url, sonarr_api_key)
+
+	if filebot_folder.find("Season") > 0:
+		filebot_folder = filebot_folder[:filebot_folder.find("Season")]
 
 #############################
 ## Initiate variables
@@ -154,8 +154,6 @@ if USE_DOWNLOAD_HISTORY_FOR_MATCHING:
 	
 	elif download_type == DownloadType.EPISODE:
 		fn = fn[:fn.find(series_episode_numbers)+6]	
-		if filebot_folder.find("Season") > 0:
-			filebot_folder = filebot_folder[:filebot_folder.find("Season")]
 
 		history = load_history(sonarr_api_url, sonarr_api_key, NUMBER_HISTORY_ITEMS_TO_CONSIDER)
 
@@ -181,13 +179,13 @@ if matched is None:
 	print ('Reviewing Sonarr/Radarr full database match to download:')
 	media = media_factory.load_from_pvr("All")
 
-	matched = [item for item in media if item == imdb]
+	matched = [item for item in media if item == tmdbId_tvdbId]
 
 	if len(matched) != 1:
 		print("Could not match media '" + fn + "' to Radarr/Sonarr database.")
 		matched = None
-
-	matched = matched[0]
+	else:
+		matched = matched[0]
 
 #############################
 ## END media lookup method
@@ -198,7 +196,7 @@ if matched is None:
 	print("Could not match media '" + fn + "' using any methods.  Exiting.")
 
 	if pushover is not None:
-		pushover.SendPushoverMessage("Could not match media", "Could not match '" + fn + "' to any record in Sonarr or Radarr.  Please fix manually.")
+		pushover.send_pushover_message("Could not match media", "Could not match '" + fn + "' to any record in Sonarr or Radarr.  Please fix manually.")
 	
 	exit()
 
@@ -207,7 +205,7 @@ if matched is None:
 #############################
 
 print ("")
-print ("Matched: " + matched.title + ", ID: " + str(matched.media_id) + ", IMDB ID: " + matched.imdb)
+print ("Matched: " + matched.title + ", ID: " + str(matched.media_id) + ", TheMovieDB / TheTVDB ID: " + str(matched.public_db_id))
 print ("      current Radarr/Sonarr path: " + matched.path)
 print ("      filebot (correct) path: " + filebot_folder)
 
@@ -216,11 +214,12 @@ print ("      filebot (correct) path: " + filebot_folder)
 #############################
 
 print ()
-print ("Concluding, reviewing if any path updates need to be made in Sonarr/Radarr:")
+print ("Reviewing if any path updates need to be made in Sonarr/Radarr:")
 if matched.path == filebot_folder:
 	print ("    concluded that the path is CORRECT for the media, no change necessary")
 else:
 	print ("    concluded that the path is incorrect for the media")
+	matched.move_media_files(filebot_folder)
 	matched.update_path(filebot_folder)
 
 #############################
@@ -229,7 +228,7 @@ else:
 
 if PERFORM_POST_MATCH_OPERATIONS:
 	if download_type == DownloadType.MOVIE:
-		media_factory.remove_extra_movie_files(matched, pushover)
+		media_factory.scan_for_duplicates(matched, pushover, verbose=False)
 
 #############################
 ## Rescan the media
